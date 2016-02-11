@@ -2,7 +2,17 @@ defmodule Rumbl.VideoChannel do
   use Rumbl.Web, :channel
 
   def join("videos:" <> video_id, _params, socket) do
-    {:ok, assign(socket, :video_id, String.to_integer(video_id))}
+    video = Repo.get!(Rumbl.Video, video_id)
+    annotations = Repo.all(
+      from a in assoc(video, :annotations),
+      order_by: [desc: a.at],
+      limit: 200,
+      preload: [:user]
+    )
+
+    resp = %{annotations: Phoenix.View.render_many(annotations, Rumbl.AnnotationView, "annotation.json")}
+
+    {:ok, resp, assign(socket, :video_id, video.id)}
   end
 
   def handle_in(event, params, socket) do
@@ -28,8 +38,5 @@ defmodule Rumbl.VideoChannel do
       {:error, changeset} ->
         {:reply, {:error, %{errors: changeset}}, socket}
     end
-
-
-
   end
 end
